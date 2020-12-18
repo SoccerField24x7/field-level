@@ -10,6 +10,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using ServiceStack.Redis;
 
 namespace FieldLevel
 {
@@ -26,6 +27,8 @@ namespace FieldLevel
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers();
+            services.AddScoped<IRedisClientsManager>(c => new RedisManagerPool(Configuration["ConnectionStrings:DefaultConnection"]));
+            services.AddScoped<IRedisClient>(c => c.GetService<IRedisClientsManager>().GetClient());
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
