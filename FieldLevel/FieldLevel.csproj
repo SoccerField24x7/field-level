@@ -4,5 +4,9 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="ServiceStack.Redis.Core" Version="5.10.2" />
+  </ItemGroup>
+
 
 </Project>
