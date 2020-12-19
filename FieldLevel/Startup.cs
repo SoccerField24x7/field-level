@@ -27,8 +27,7 @@ namespace FieldLevel
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers();
-            services.AddScoped<IRedisClientsManager>(c => new RedisManagerPool(Configuration["ConnectionStrings:DefaultConnection"]));
-            services.AddScoped<IRedisClient>(c => c.GetService<IRedisClientsManager>().GetClient());
+            services.AddSingleton<IRedisClientsManagerAsync>(c => new RedisManagerPool(Configuration["ConnectionStrings:DefaultConnection"]));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
