@@ -15,30 +15,33 @@ namespace FieldLevel.Controllers
     public class PostsController : Controller
     {
         private readonly ILogger<PostsController> _logger;
-        private readonly IRedisClient _redis;
+        private readonly IRedisClientsManagerAsync _manager;
+        private static Random random = new Random();
 
-        public PostsController(ILogger<PostsController> logger, IRedisClient redis)
+        public PostsController(ILogger<PostsController> logger, IRedisClientsManagerAsync redisManager)
         {
             _logger = logger;
-            _redis = redis;
+            this._manager = redisManager;
         }
 
         [HttpGet]
-        public JsonResult Main()
+        public async Task<JsonResult> Main()
         {
-            var redisPosts = _redis.As<Post>();
+            await using var redis = await _manager.GetClientAsync();
+            var redisPosts = redis.As<Post>();
+            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
             var testPost = new Post
             {
-                Id = redisPosts.GetNextSequence(),
+                Id = await redisPosts.GetNextSequenceAsync(),
                 UserId = 10,
                 Title = "From Here to There",
-                Body = "Over the river and through the woods..."
+                Body = new string(Enumerable.Range(1, 35).Select(_ => chars[random.Next(chars.Length)]).ToArray())
             };
 
             try
             {
-                _redis.Store(testPost);
+                await redis.StoreAsync(testPost);
             }
             catch(Exception ex)
             {
