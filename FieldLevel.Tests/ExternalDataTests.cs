@@ -2,7 +2,6 @@
 using Xunit;
 using FieldLevel.Helpers;
 using System.Threading.Tasks;
-using System.Linq;
 
 namespace FieldLevel.Tests
 {
@@ -11,9 +10,9 @@ namespace FieldLevel.Tests
         [Fact]
         public async Task CanGetPostData()
         {
-            var client = new ApiHelper();
+            var helper = new ApiHelper();
 
-            var posts = await client.GetPostDataAsync();
+            var posts = await helper.GetPostDataAsync();
 
             Assert.Equal(100, posts.Count);
         }
@@ -21,15 +20,11 @@ namespace FieldLevel.Tests
         [Fact]
         public async Task PostResultsHaveCorrectData()
         {
-            var client = new ApiHelper();
+            var helper = new ApiHelper();
 
-            var posts = await client.GetPostDataAsync();
+            var posts = await helper.GetPostDataAsync();
 
-            var uniquesByUser = posts.GroupBy(s => s.UserId)
-                                    .Select(s => s.OrderByDescending(x => x.Id)
-                                    .FirstOrDefault()                                    )
-                                    .OrderBy(x => x.UserId)
-                                    .ToList(); // SO 470440
+            var uniquesByUser = helper.GetLastPostForEachUser(posts);
 
             Assert.Equal(10, uniquesByUser[0].Id);
             Assert.Equal(100, uniquesByUser[9].Id);
