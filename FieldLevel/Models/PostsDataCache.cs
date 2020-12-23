@@ -13,6 +13,13 @@ namespace FieldLevel.Models
         {
         }
 
+        public PostsDataCache(Guid id, List<Post> data, DateTime? lastCacheDate)
+        {
+            this.Id = id;
+            this.Data = data;
+            this.LastCacheDate = lastCacheDate;
+        }
+
         public Guid Id { get; set; }
 
         public List<Post> Data { get; set; }
