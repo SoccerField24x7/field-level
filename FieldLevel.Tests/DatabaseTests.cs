@@ -25,26 +25,14 @@ namespace FieldLevel.Tests
         [Fact]
         public async Task CanConnectToAndStoreInRedis()
         {
-            bool valid;
-
             await using var redis = await _redispool.GetClientAsync();
             var redisPostsClient = redis.As<Post>(); // get the typed client
 
-            var testPost = await CreateTestPost(redisPostsClient);
+            var testPost = await CreateTestPost();
 
-            try
-            {
-                await redis.StoreAsync(testPost);
-                valid = true;
-            }
-            catch(Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-                valid = false;
-            }
-            
+            var result = await redis.StoreAsync(testPost);
 
-            Assert.True(valid);
+            Assert.NotNull(result);
         }
 
         [Fact]
@@ -52,31 +40,36 @@ namespace FieldLevel.Tests
         {
             await using var redis = await _redispool.GetClientAsync();
             var redisPosts = redis.As<Post>();
-            var testPost = await CreateTestPost(redisPosts);
-            bool success = false;
-            
+            var testPost = await CreateTestPost();
+            var helper = new CacheHelper(_redispool);
 
-            try
-            {
-                var result = await redisPosts.StoreAsync(testPost);
-                await redisPosts.ExpireInAsync(testPost.Id, TimeSpan.FromMilliseconds(20000));
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-                success = false;  // TODO: force this to exist early
-            }
+            await helper.CachePostAsync(testPost, TimeSpan.FromMilliseconds(10000));  // test millisecs
 
-            var retPost = await redisPosts.GetByIdAsync(testPost.Id);
-            Assert.NotNull(retPost);  // not normally a fan of multiple assertions, but have to be sure
+            var result = await redisPosts.GetByIdAsync(testPost.Id);
+            Assert.NotNull(result);  // not normally a fan of multiple assertions, but have to be sure
 
             // Wait while cache expires
-            await Task.Delay(30000);
+            await Task.Delay(15000);
             
             // get the record again
-            retPost = await redisPosts.GetByIdAsync(testPost.Id);
-            Assert.Null(retPost);
+            result = await redisPosts.GetByIdAsync(testPost.Id);
+            Assert.Null(result);
+        }
 
+        [Fact]
+        public async Task CachePostList()
+        {
+            var helper = new CacheHelper(_redispool);
+            var list = await CreateTestPostList(100);
+
+            var result = await helper.CachePostListAsync(list);
+
+            Assert.True(result);
+
+            // clean-up
+            await (await helper.GetRedisClientAsync())
+                .As<Post>()
+                .DeleteByIdsAsync(list.Select(x => x.Id));
         }
 
         [Fact]
@@ -84,8 +77,7 @@ namespace FieldLevel.Tests
         {
             await using var redis = await _redispool.GetClientAsync();
             var redisCacheClient = redis.As<PostsDataCache>();
-            bool success = false;
-
+            
             PostsDataCache cacheItem = new PostsDataCache()
             {
                 Id = PostsDataCache.LATEST_POSTS_BY_AUTHOR,
@@ -95,28 +87,37 @@ namespace FieldLevel.Tests
 
             var helper = new CacheHelper(_redispool);
 
-            var result = await helper.CacheLastPostsByUser(cacheItem, TimeSpan.FromSeconds(20));
+            var result = await helper.CacheLastPostsByUserAsync(cacheItem, TimeSpan.FromSeconds(10)); // test secs
 
-            // retrieve it (got it)
             var expiringPost = await redisCacheClient.GetByIdAsync(cacheItem.Id);
             Assert.NotNull(expiringPost);
 
-            // sleep
-            await Task.Delay(22000);
+            await Task.Delay(15000);
 
-            // retrieve it again (fail)
             var expiredPost = await redisCacheClient.GetByIdAsync(cacheItem.Id);
             Assert.Null(expiredPost);
-
         }
 
-        private async Task<Post> CreateTestPost(IRedisTypedClientAsync<Post> redis, int userId=10)
+        [Fact]
+        public async Task CanGetRedisClient()
         {
+            var helper = new CacheHelper(_redispool);
+            await using var control = await _redispool.GetClientAsync();
+            var redisClient = await helper.GetRedisClientAsync();
+
+            Assert.IsType(control.GetType(), redisClient);
+        }
+
+        private async Task<Post> CreateTestPost(int userId=10)
+        {
+            await using var redis = await _redispool.GetClientAsync();
+            var redisPostClient = redis.As<Post>();
+
             const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
             
             var testPost = new Post
             {
-                Id = await redis.GetNextSequenceAsync(),
+                Id = await redisPostClient.GetNextSequenceAsync(),
                 UserId = userId,
                 Title = "A random test post",
                 Body = new string(Enumerable.Range(1, 35).Select(_ => chars[random.Next(chars.Length)]).ToArray())
@@ -135,7 +136,7 @@ namespace FieldLevel.Tests
 
             for (i = 0; i < total; i++)
             {
-                list.Add(await CreateTestPost(redisPostClient, random.Next(1, 100)));
+                list.Add(await CreateTestPost(random.Next(1, 100)));
             }
 
             return list;
