@@ -2,11 +2,10 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using ServiceStack.Redis;
-using System.IO;
 using FieldLevel.Models;
+using FieldLevel.Helpers;
 
 namespace FieldLevel.Controllers
 {
@@ -17,6 +16,7 @@ namespace FieldLevel.Controllers
         private readonly ILogger<PostsController> _logger;
         private readonly IRedisClientsManagerAsync _manager;
         private static Random random = new Random();
+        private const int CACHE_EXPIRY = 60000;
 
         public PostsController(ILogger<PostsController> logger, IRedisClientsManagerAsync redisManager)
         {
@@ -25,30 +25,57 @@ namespace FieldLevel.Controllers
         }
 
         [HttpGet]
-        public async Task<JsonResult> Main()
+        public async Task<JsonResult> GetLastPostByAuthors()
         {
-            await using var redis = await _manager.GetClientAsync();
-            var redisPosts = redis.As<Post>();
-            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            List <Post> list = new List<Post>();
+            var cacheHelper = new CacheHelper(_manager);
+            var typedClient = (await cacheHelper.GetRedisClientAsync()).As<PostsDataCache>();
+            
+            var posts = await typedClient.GetByIdAsync(PostsDataCache.LATEST_POSTS_BY_AUTHOR);
 
-            var testPost = new Post
+            list = posts?.Data;
+
+            if (posts == null)
             {
-                Id = await redisPosts.GetNextSequenceAsync(),
-                UserId = 10,
-                Title = "From Here to There",
-                Body = new string(Enumerable.Range(1, 35).Select(_ => chars[random.Next(chars.Length)]).ToArray())
-            };
+                list = await HandlePostCaching(cacheHelper);
+            }
+
+            return Json(list);
+        }
+
+        private async Task<List<Post>> HandlePostCaching(CacheHelper cacheHelper)
+        {
+            // no posts, let's get them
+            var apiHelper = new ApiHelper();
+            List<Post> list = new List<Post>();
+            List<Post> allPosts = new List<Post>();
 
             try
             {
-                await redis.StoreAsync(testPost);
+                allPosts = await apiHelper.GetPostDataAsync();
+                await cacheHelper.CachePostListAsync(allPosts); // store everything for fallback
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                _logger.LogError(ex.Message);
+                // TODO: issue a pretty error, for now just blow up
+                throw ex;
+            }
+            
+            list = apiHelper.GetLastPostForEachUser(allPosts);
+
+            // now cache them
+            PostsDataCache cacheItem = new PostsDataCache(PostsDataCache.LATEST_POSTS_BY_AUTHOR, list, DateTime.UtcNow);
+
+            var result = await cacheHelper.CacheLastPostsByUserAsync(cacheItem, TimeSpan.FromMilliseconds(CACHE_EXPIRY));
+            if (result == null)
+            {
+                _logger.LogError("Could not store the Last Posts object.");
+                // TODO: issue a pretty error
+                throw new Exception("Could not store the Last Posts object.");
             }
 
-            return Json(testPost);
+            return result.Data;
         }
     }
 }
