@@ -39,7 +39,7 @@ You will need to update the `appsettings.json` files before running the project 
 - Application at `FieldLevel\appsettings.Development.json`
 - using the format: `"password=@server:port?ssl=true"`
 
-To validate everything is setup properly, run the unit tests. Assuming you are in the project root:
+To validate everything is setup properly, run the unit tests from the command-line. Assuming you are in the project root:
 
 `cd FieldLevel.Tests`
 
@@ -48,11 +48,12 @@ To validate everything is setup properly, run the unit tests. Assuming you are i
 Because some of the tests are testing cache expiration, the total execution time should be about 30 seconds.
 
 That's it, let's run it.
+
 **Using Visual Studio and IIS Express**, click the button. :) It should navigate to the only endpoint directly, if not go here:
 
 `https://localhost:44300/api/posts`
 
-**Using Mac, Windows, Linux** Again assuming you are in the root solution directory:
+**Using Mac, Windows, Linux from the Terminal** Again assuming you are in the root solution directory:
 
 `cd FieldLevel`
 
