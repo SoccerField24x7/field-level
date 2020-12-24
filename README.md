@@ -32,26 +32,32 @@ This application leverages Redis.
 - The easiest way to run the application is to create a Redis Docker container
 - `docker run -p 6379:6379 --name redis-local -d redis:4`
 
-_Note: an Azure instance has been setup to make things easier for deployment, the connection string will be included via email (never check in passwords!)
+_Note: an Azure instance has been setup to make things easier for deployment, the connection string will be included via email (never check in passwords!)_
 
-You will need to update the appsettings.json files before running the project if not running locally using the above Docker configuration:
+You will need to update the `appsettings.json` files before running the project if not running locally using the above Docker configuration:
 - Tests (integration/unit) at `FieldLevel.Tests\appsettings.json`
 - Application at `FieldLevel\appsettings.Development.json`
 - using the format: `"password=@server:port?ssl=true"`
 
 To validate everything is setup properly, run the unit tests. Assuming you are in the project root:
+
 `cd FieldLevel.Tests`
+
 `dotnet test`
 
 Because some of the tests are testing cache expiration, the total execution time should be about 30 seconds.
 
 That's it, let's run it.
-*Using Visual Studio and IIS Express*. It should navigate to the only endpoint directly, if not go here:
+**Using Visual Studio and IIS Express**, click the button. :) It should navigate to the only endpoint directly, if not go here:
+
 `https://localhost:44300/api/posts`
 
-*Using Mac, Windows, Linux* Again assuming you are in the root solution directory:
+**Using Mac, Windows, Linux** Again assuming you are in the root solution directory:
+
 `cd FieldLevel`
+
 `dotnet run`
+
 Then go to `https://localhost:5001/api/posts`
 
 # Design Decisions
