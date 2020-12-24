@@ -6,11 +6,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using ServiceStack.Redis;
+using FieldLevel.Services;
 
 namespace FieldLevel
 {
@@ -23,14 +20,14 @@ namespace FieldLevel
 
         public IConfiguration Configuration { get; }
 
-        // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers();
-            services.AddSingleton<IRedisClientsManagerAsync>(c => new RedisManagerPool(Configuration["ConnectionStrings:DefaultConnection"]));
+            services.AddSingleton<IRedisClientsManagerAsync>(x => new RedisManagerPool(Configuration["ConnectionStrings:DefaultConnection"]));
+            services.AddTransient<CacheService>(x => new CacheService(x.GetService<IRedisClientsManagerAsync>()));
+            services.AddScoped<ApiService>(x => new ApiService());
         }
 
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment())
