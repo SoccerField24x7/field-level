@@ -4,7 +4,7 @@ using ServiceStack.Redis;
 using FieldLevel.Models;
 using System.Threading.Tasks;
 using System.Linq;
-using FieldLevel.Helpers;
+using FieldLevel.Services;
 using ServiceStack.Redis.Generic;
 using System.Collections.Generic;
 
@@ -19,7 +19,7 @@ namespace FieldLevel.Tests
         public DatabaseTests(GlobalTestSetup fixture)
         {
             this._fixture = fixture;
-            this._redispool = new RedisManagerPool(fixture._connectionString);
+            this._redispool = new RedisManagerPool(_fixture._connectionString);
         }
 
         [Fact]
@@ -41,7 +41,7 @@ namespace FieldLevel.Tests
             await using var redis = await _redispool.GetClientAsync();
             var redisPosts = redis.As<Post>();
             var testPost = await CreateTestPost();
-            var helper = new CacheHelper(_redispool);
+            var helper = new CacheService(_redispool);
 
             await helper.CachePostAsync(testPost, TimeSpan.FromMilliseconds(10000));  // test millisecs
 
@@ -59,7 +59,7 @@ namespace FieldLevel.Tests
         [Fact]
         public async Task CachePostList()
         {
-            var helper = new CacheHelper(_redispool);
+            var helper = new CacheService(_redispool);
             var list = await CreateTestPostList(100);
 
             var result = await helper.CachePostListAsync(list);
@@ -85,7 +85,7 @@ namespace FieldLevel.Tests
                 LastCacheDate = DateTime.UtcNow
             };
 
-            var helper = new CacheHelper(_redispool);
+            var helper = new CacheService(_redispool);
 
             var result = await helper.CacheLastPostsByUserAsync(cacheItem, TimeSpan.FromSeconds(10)); // test secs
 
@@ -101,7 +101,7 @@ namespace FieldLevel.Tests
         [Fact]
         public async Task CanGetRedisClient()
         {
-            var helper = new CacheHelper(_redispool);
+            var helper = new CacheService(_redispool);
             await using var control = await _redispool.GetClientAsync();
             var redisClient = await helper.GetRedisClientAsync();
 
