@@ -2,20 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
+using System.Linq;
 using FieldLevel.Models;
-using ServiceStack.Redis;
-//using System.Text.Json;
-using System.Text.Json.Serialization;
 using Newtonsoft.Json;
-//using Newtonsoft.Json;
 
 namespace FieldLevel.Helpers
 {
     public class ApiHelper
     {
         private HttpClient _client;
-        private IRedisClientsManagerAsync _manager;
-        private readonly string POST_ENDPOINT = "https://jsonplaceholder.typicode.com/posts";       
+        private const string POST_ENDPOINT = "https://jsonplaceholder.typicode.com/posts";       
 
         public ApiHelper()
         {
@@ -29,13 +25,22 @@ namespace FieldLevel.Helpers
 
             if (!response.IsSuccessStatusCode)
             {
-                //what?
+                throw new HttpRequestException();
             }
 
             var content = await response.Content.ReadAsStringAsync();
             results = await Task.Run(() => JsonConvert.DeserializeObject<List<Post>>(content));
 
             return results;
+        }
+
+        public List<Post> GetLastPostForEachUser(List<Post> posts)
+        {
+            return posts.GroupBy(s => s.UserId)
+                        .Select(s => s.OrderByDescending(x => x.Id)
+                        .FirstOrDefault())
+                        .OrderBy(x => x.UserId)
+                        .ToList();
         }
     }
 }
